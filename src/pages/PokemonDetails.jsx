@@ -7,26 +7,136 @@ import MakeForm from "../components/MakeForm/MakeForm";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useFetch } from "../hooks/useFetch";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { usePureFetch } from "../hooks/usePureFetch";
+import { queryClient } from "../utils/query";
 //https://believemy-pokedex-ce1dd-default-rtdb.europe-west1.firebasedatabase.app/pokemons.json
 export default function PokemonDetails() {
   // Variables
+
   const { id } = useParams();
   const navigate = useNavigate();
+
   const {
     data: pokemon,
-    loading: loadingPokemon,
+    isLoading: loadingPokemon,
+    isError,
     error,
-    setData: setPokemon,
-  } = useFetch(
-    isNaN(id)
-      ? `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`
-      : `https://pokeapi.co/api/v2/pokemon/${id}`,
-    [],
-    (data) => {
-      isNaN(id) ? (data.id = id) : (data.id = data.id);
-    }
-  );
+  } = useQuery({
+    queryKey: ["pokemon", { id }], // dans le cache lID de l elelement === ID du GET et mettre la fonction pokemon
+    queryFn: () =>
+      usePureFetch(
+        isNaN(id)
+          ? `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`
+          : `https://pokeapi.co/api/v2/pokemon/${id}`,
 
+        (data) => {
+          isNaN(id) ? (data.id = id) : data.id; // si true: id DE FIREBASE VAUDRA LID DU GET  si FALSE: id de FIREBASE VAUDRA ID DE FIREBASE
+        }
+      ),
+  });
+
+  const {
+    // GERER LA MODIFICAtion
+    mutate,
+    isError: isErrorBis,
+    error: errorBis,
+  } = useMutation({
+    mutationFn: async () => {
+      const updatedPokemon = {
+        // General
+        id,
+        name: name.current.value,
+        height: height.current.value / 10, // cm to decimeter
+        weight: weight.current.value * 10, // kg to hectogram
+        sprites: {
+          other: {
+            home: {
+              front_default: image.current.value,
+            },
+          },
+        },
+        // Stats
+        stats: [
+          {
+            base_stat: hp.current.value,
+            stat: {
+              name: "hp",
+            },
+          },
+          {
+            base_stat: attack.current.value,
+            stat: {
+              name: "attack",
+            },
+          },
+          {
+            base_stat: defense.current.value,
+            stat: {
+              name: "defense",
+            },
+          },
+          {
+            base_stat: specialAttack.current.value,
+            stat: {
+              name: "special-attack",
+            },
+          },
+          {
+            base_stat: specialDefense.current.value,
+            stat: {
+              name: "special-defense",
+            },
+          },
+          {
+            base_stat: speed.current.value,
+            stat: {
+              name: "speed",
+            },
+          },
+        ],
+        // Types
+        types: [],
+      };
+
+      // Loop on types to add them to pokemon if checked
+      const typesKeys = Object.keys(types.current);
+      typesKeys.forEach((type) => {
+        if (types.current[type].checked) {
+          updatedPokemon.types.push({
+            type: {
+              name: type,
+            },
+          });
+        }
+      });
+
+      // Updates on firebase
+      const response = await fetch(
+        `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedPokemon),
+        }
+      );
+
+      // Error
+      if (!response.ok) {
+        throw new Error("Une erreur est intervenue.");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        // retire l ancienne valeur des elements modifies
+        queryKey: ["pokemon", { id }], // qui aura comme identifiant
+        exact: true, //securite
+      });
+      setUpdatePokemon(false); // FERME LA MODALE SERT A OUVRIR OU FERMER SELON L ETAT
+    },
+  });
   // Refs
   const name = useRef("");
   const height = useRef("");
@@ -40,7 +150,6 @@ export default function PokemonDetails() {
   const image = useRef("");
   const types = useRef([]);
 
-  const [loading, setLoading] = useState(false);
   const [updatePokemon, setUpdatePokemon] = useState(false);
 
   // useEffect(() => {
@@ -56,146 +165,20 @@ export default function PokemonDetails() {
     }
   }, [updatePokemon]);
 
+  //CAS ERROR
   useEffect(() => {
-    if (error) {
-      toast.error("Une erreur est intervenue !");
+    if (isError) {
+      toast.error(error);
     }
-  }, [error]);
+  }, [error, isError]);
+
+  useEffect(() => {
+    if (isErrorBis) {
+      toast.error(errorBis);
+    }
+  }, [errorBis, isErrorBis]);
 
   // Functions
-  // const fetchPokemon = async () => {
-  //     if (loading) return;
-
-  //     setLoading(true);
-
-  //     let url = `https://pokeapi.co/api/v2/pokemon/${id}`;
-
-  //     // Check if pokemon is in my created pokemons
-  //     if (isNaN(id)) {
-  //         url = `https://believemy-pokedex-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`;
-  //     }
-
-  //     try {
-  //         const response = await fetch(url, {
-  //             method: "GET",
-  //             headers: {
-  //                 "Content-Type": "application/json",
-  //             },
-  //         });
-
-  //         const data = await response.json();
-
-  //         // If pokemon is in my created pokemons, add the id
-  //         if (isNaN(id)) {
-  //             data.id = id;
-  //         }
-
-  //         setPokemon(data);
-  //         setLoading(false);
-  //     } catch (error) {
-  //         setLoading(false);
-  //         toast.error("Une erreur est intervenue");
-  //     }
-  // };
-  const onUpdatePokemonHandler = async () => {
-    const updatedPokemon = {
-      // General
-      id,
-      name: name.current.value,
-      height: height.current.value / 10, // cm to decimeter
-      weight: weight.current.value * 10, // kg to hectogram
-      sprites: {
-        other: {
-          home: {
-            front_default: image.current.value,
-          },
-        },
-      },
-      // Stats
-      stats: [
-        {
-          base_stat: hp.current.value,
-          stat: {
-            name: "hp",
-          },
-        },
-        {
-          base_stat: attack.current.value,
-          stat: {
-            name: "attack",
-          },
-        },
-        {
-          base_stat: defense.current.value,
-          stat: {
-            name: "defense",
-          },
-        },
-        {
-          base_stat: specialAttack.current.value,
-          stat: {
-            name: "special-attack",
-          },
-        },
-        {
-          base_stat: specialDefense.current.value,
-          stat: {
-            name: "special-defense",
-          },
-        },
-        {
-          base_stat: speed.current.value,
-          stat: {
-            name: "speed",
-          },
-        },
-      ],
-      // Types
-      types: [],
-    };
-
-    // Loop on types to add them to pokemon if checked
-    const typesKeys = Object.keys(types.current);
-    typesKeys.forEach((type) => {
-      if (types.current[type].checked) {
-        updatedPokemon.types.push({
-          type: {
-            name: type,
-          },
-        });
-      }
-    });
-
-    const pokemonBefore = {};
-    Object.assign(pokemonBefore, pokemon);
-
-    setPokemon(updatedPokemon); // with optimistic rendering
-    setUpdatePokemon(false);
-    setLoading(false);
-
-    // Updates on firebase
-    const response = await fetch(
-      `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedPokemon),
-      }
-    );
-
-    // Error
-    if (!response.ok) {
-      toast.error("Une erreur est intervenue");
-      setPokemon(pokemonBefore);
-    }
-
-    // Close modal
-    // setUpdatePokemon(false); // without optimistic rendering
-    // setLoading(false); // without optimistic rendering
-    // setPokemon(updatedPokemon); // without optimistic rendering
-  };
   const onDeletePokemonHandler = async () => {
     // Delete
     if (window.confirm("Voulez-vous vraiment supprimer ce pokémon ?")) {
@@ -222,8 +205,7 @@ export default function PokemonDetails() {
     }
   };
 
-  if (loading || loadingPokemon)
-    return <div className="text-center">Chargement...</div>;
+  if (loadingPokemon) return <div className="text-center">Chargement...</div>;
 
   if (!pokemon || !pokemon.name)
     return <div className="text-center">Pokemon non trouvé</div>;
@@ -279,7 +261,7 @@ export default function PokemonDetails() {
                 Modifier un pokémon
               </h2>
 
-              <MakeForm
+              <MakeForm // FORM DE MISE A JOUR POKEMON
                 name={name}
                 height={height}
                 weight={weight}
@@ -291,7 +273,7 @@ export default function PokemonDetails() {
                 speed={speed}
                 image={image}
                 types={types}
-                onFormSubmittedHandler={onUpdatePokemonHandler}
+                onFormSubmittedHandler={mutate}
                 pokemon={pokemon}
               />
             </div>
