@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { upperFirst } from "../utils/upperFirst";
-import { translateName } from "../utils/translateName";
+
 import Pokecard from "../components/Pokecard/Pokecard";
 import { createPortal } from "react-dom";
 import MakeForm from "../components/MakeForm/MakeForm";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useFetch } from "../hooks/useFetch";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { usePureFetch } from "../hooks/usePureFetch";
 import { queryClient } from "../utils/query";
