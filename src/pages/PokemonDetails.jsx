@@ -42,75 +42,7 @@ export default function PokemonDetails() {
     isError: isErrorBis,
     error: errorBis,
   } = useMutation({
-    mutationFn: async () => {
-      const updatedPokemon = {
-        // General
-        id,
-        name: name.current.value,
-        height: height.current.value / 10, // cm to decimeter
-        weight: weight.current.value * 10, // kg to hectogram
-        sprites: {
-          other: {
-            home: {
-              front_default: image.current.value,
-            },
-          },
-        },
-        // Stats
-        stats: [
-          {
-            base_stat: hp.current.value,
-            stat: {
-              name: "hp",
-            },
-          },
-          {
-            base_stat: attack.current.value,
-            stat: {
-              name: "attack",
-            },
-          },
-          {
-            base_stat: defense.current.value,
-            stat: {
-              name: "defense",
-            },
-          },
-          {
-            base_stat: specialAttack.current.value,
-            stat: {
-              name: "special-attack",
-            },
-          },
-          {
-            base_stat: specialDefense.current.value,
-            stat: {
-              name: "special-defense",
-            },
-          },
-          {
-            base_stat: speed.current.value,
-            stat: {
-              name: "speed",
-            },
-          },
-        ],
-        // Types
-        types: [],
-      };
-
-      // Loop on types to add them to pokemon if checked
-      const typesKeys = Object.keys(types.current);
-      typesKeys.forEach((type) => {
-        if (types.current[type].checked) {
-          updatedPokemon.types.push({
-            type: {
-              name: type,
-            },
-          });
-        }
-      });
-
+    mutationFn: async (updatedPokemon) => {
       // Updates on firebase
       const response = await fetch(
         `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`,
@@ -125,7 +57,7 @@ export default function PokemonDetails() {
 
       // Error
       if (!response.ok) {
-        throw new Error("Une erreur est intervenue.");
+        toast.error("Une erreur est intervenue");
       }
     },
     onSuccess: () => {
@@ -136,7 +68,49 @@ export default function PokemonDetails() {
       });
       setUpdatePokemon(false); // FERME LA MODALE SERT A OUVRIR OU FERMER SELON L ETAT
     },
+    onMutate: (updatedPokemon) => {
+      //modifie la valeur pendant le chargement
+      //creation variable version precedante de l objet
+      const previousUpdate = queryClient.getQueriesData(["pokemon", { id }]);
+      queryClient.setQueriesData(["pokemon", { id }], updatedPokemon);
+      return { previousUpdate };
+    },
+    onError: (context) => {
+      // reviens a la version precedante si une erreur arrive comme une requete
+      queryClient.setQueryData(["pokemon", { id }], context.previousUpdate);
+    },
   });
+
+  //USEMUTATION POUR GERER LA SUPPRESSION DANS LE CACHE ET DANS LA DATA DU POKEMON :
+  const { mutate: onDeletePokemonHandler } = useMutation({
+    mutationFn: async () => {
+      //    Delete
+      if (window.confirm("Voulez-vous vraiment supprimer ce pokémon ?")) {
+        //  Delete from firebase realtime
+        const response = await fetch(
+          `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        // Error
+        if (!response.ok) {
+          toast.error("Une erreur est intervenue.");
+        }
+      }
+    },
+    onSuccess: () => {
+      //changer le cache :
+      queryClient.invalidateQueries(["pokemons"]); // VIDE LE CACHE DE LA REQUETE DE TOUT LES POKEMONS
+      queryClient.invalidateQueries(["pokemon"], { id }); // VIDE LE CACHE DE LA REQUETE DU POKEMON SUPPRIMER
+      navigate("/");
+    },
+  });
+
   // Refs
   const name = useRef("");
   const height = useRef("");
@@ -179,30 +153,100 @@ export default function PokemonDetails() {
   }, [errorBis, isErrorBis]);
 
   // Functions
-  const onDeletePokemonHandler = async () => {
-    // Delete
-    if (window.confirm("Voulez-vous vraiment supprimer ce pokémon ?")) {
-      setLoading(true);
+  // const onDeletePokemonHandler = async () => {
+  //   // Delete
+  //   if (window.confirm("Voulez-vous vraiment supprimer ce pokémon ?")) {
+  //     // Delete from firebase realtime
+  //     const response = await fetch(
+  //       `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`,
+  //       {
+  //         method: "DELETE",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //       }
+  //     );
 
-      // Delete from firebase realtime
-      const response = await fetch(
-        `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons/${id}.json`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
+  //     // Error
+  //     if (!response.ok) {
+  //       toast.error("Une erreur est intervenue.");
+  //     }
+
+  //     // Redirect
+  //     navigate("/");
+  //   }
+  // };
+
+  const beforeMutate = () => {
+    const updatedPokemon = {
+      // General
+      id,
+      name: name.current.value,
+      height: height.current.value / 10, // cm to decimeter
+      weight: weight.current.value * 10, // kg to hectogram
+      sprites: {
+        other: {
+          home: {
+            front_default: image.current.value,
           },
-        }
-      );
+        },
+      },
+      // Stats
+      stats: [
+        {
+          base_stat: hp.current.value,
+          stat: {
+            name: "hp",
+          },
+        },
+        {
+          base_stat: attack.current.value,
+          stat: {
+            name: "attack",
+          },
+        },
+        {
+          base_stat: defense.current.value,
+          stat: {
+            name: "defense",
+          },
+        },
+        {
+          base_stat: specialAttack.current.value,
+          stat: {
+            name: "special-attack",
+          },
+        },
+        {
+          base_stat: specialDefense.current.value,
+          stat: {
+            name: "special-defense",
+          },
+        },
+        {
+          base_stat: speed.current.value,
+          stat: {
+            name: "speed",
+          },
+        },
+      ],
+      // Types
+      types: [],
+    };
 
-      // Error
-      if (!response.ok) {
-        toast.error("Une erreur est intervenue.");
+    // Loop on types to add them to pokemon if checked
+    const typesKeys = Object.keys(types.current);
+    typesKeys.forEach((type) => {
+      if (types.current[type].checked) {
+        updatedPokemon.types.push({
+          type: {
+            name: type,
+          },
+        });
       }
+    });
 
-      // Redirect
-      navigate("/");
-    }
+    mutate(updatedPokemon);
   };
 
   if (loadingPokemon) return <div className="text-center">Chargement...</div>;
@@ -273,7 +317,7 @@ export default function PokemonDetails() {
                 speed={speed}
                 image={image}
                 types={types}
-                onFormSubmittedHandler={mutate}
+                onFormSubmittedHandler={beforeMutate}
                 pokemon={pokemon}
               />
             </div>

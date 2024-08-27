@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import Pokecard from "../components/Pokecard/Pokecard";
 import { toast } from "react-toastify";
 import { useLoaderData } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient } from "../utils/query";
 export default function Home() {
-  // Variables
-  // States
-  // const [pokemons, setPokemons] = useState([]); GERER PAR USEQUERY
   // Fetch first 30 pokemons
   const fetchPokemons = async () => {
     // setLoading(true); // GERER PAR USEQUERY
@@ -78,6 +76,48 @@ export default function Home() {
     // setLoading(false); useQuery a la place
   };
 
+  const fetchMorePokemons = async () => {
+    // FETCH POUR AFFICHER LES POKEMONS RESTANT DANS LES DATAS
+    const response = await fetch(
+      `https://pokeapi.co/api/v2/pokemon?limit=30&offset=${pokemons.length}`,
+      {
+        //  recuperer les prochains  pokemons
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      // toast.error("Une erreur est survenue"); // UTLISATION DE THROW ERROR QUI SERA RECUPERER PAR USEQUERY
+      throw new Error("Une erreur est survenu.");
+      // setLoading(false); gerer par useQuery
+    }
+
+    const data = await response.json(); // 30 first pokemons
+
+    // Get the details des pokemons deja charger
+    const promises = data.results.map(async (pokemon) => {
+      const response = await fetch(
+        `https://pokeapi.co/api/v2/pokemon/${pokemon.name}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return await response.json();
+    });
+
+    const pokemonDetails = await Promise.all(promises);
+    console.log(pokemonDetails);
+    console.log("data", pokemons);
+    return [...pokemons, ...pokemonDetails];
+  };
+
   const {
     data: pokemons,
     isLoading,
@@ -90,6 +130,12 @@ export default function Home() {
     gcTime: 5 * 60 * 1000, // duree maximal du cache qui garder calcul pour ms : minutes * secondes * 1000
   });
 
+  const { mutate, isPending } = useMutation({
+    mutationFn: fetchMorePokemons,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["pokemons"], data);
+    },
+  });
   //USE EFFECT GERE LERREUR USEQUERY
 
   useEffect(() => {
@@ -117,8 +163,8 @@ export default function Home() {
       <div className="flex justify-center my-10">
         <button
           className="bg-white hover:bg-gray-50 rounded-full text-black py-2 px-5 text-lg font-semibold shadow-lg hover:shadow-xl transition duration-150 disabled:opacity-80 disabled:cursor-wait"
-          onClick={""}
-          disabled={isLoading}
+          onClick={mutate}
+          disabled={isPending}
         >
           Encore plus de Pokémons !
         </button>
@@ -126,61 +172,3 @@ export default function Home() {
     </div>
   );
 }
-
-// export async function loader() {
-//   // Get the first pokemons
-//   const response = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=30`, {
-//     method: "GET",
-//     headers: {
-//       "Content-Type": "application/json",
-//     },
-//   });
-
-//   if (!response.ok) {
-//     throw new Error("Impossible de charger les Pokémons");
-//   }
-
-//   const data = await response.json(); // 30 first pokemons
-
-//   // Get the details
-//   const promises = data.results.map(async (pokemon) => {
-//     const response = await fetch(
-//       `https://pokeapi.co/api/v2/pokemon/${pokemon.name}`,
-//       {
-//         method: "GET",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//       }
-//     );
-
-//     return await response.json();
-//   });
-
-//   const pokemonDetails = await Promise.all(promises);
-
-//   // My created pokemons
-//   const myPokemonsArray = [];
-//   const myPokemonsResponse = await fetch(
-//     `https://pokedex-cd328-default-rtdb.europe-west1.firebasedatabase.app/pokemons.json`,
-//     {
-//       method: "GET",
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//     }
-//   );
-
-//   const myPokemonsData = await myPokemonsResponse.json();
-
-//   // Transform data to pokeapi
-
-//   for (const key in myPokemonsData) {
-//     myPokemonsArray.push({
-//       id: key,
-//       ...myPokemonsData[key],
-//     });
-//   }
-
-//   return [...myPokemonsArray, ...pokemonDetails];
-// }
