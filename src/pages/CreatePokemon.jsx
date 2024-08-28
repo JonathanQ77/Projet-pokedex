@@ -2,7 +2,7 @@ import { useRef } from "react";
 import MakeForm from "../components/MakeForm/MakeForm";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-
+import { animate, motion } from "framer-motion";
 export default function CreatePokemon() {
   // Variable
   const navigate = useNavigate();
@@ -115,7 +115,14 @@ export default function CreatePokemon() {
   };
 
   return (
-    <div>
+    <motion.div
+      variants={{
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 },
+      }}
+      initial="hidden"
+      animate="visible"
+    >
       <h1 className="text-3xl font-semibold text-center mb-10">
         Créer un pokémon
       </h1>
@@ -135,6 +142,6 @@ export default function CreatePokemon() {
           onFormSubmittedHandler={onCreateNewPokemon}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

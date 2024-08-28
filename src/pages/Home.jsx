@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { useLoaderData } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "../utils/query";
+import { motion, spring } from "framer-motion";
 export default function Home() {
   // Fetch first 30 pokemons
   const fetchPokemons = async () => {
@@ -146,11 +147,36 @@ export default function Home() {
   return (
     <div>
       {/* Pokemons */}
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-10 max-w-7xl mx-auto mt-10 md:p-0 p-5">
+      <motion.div
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.15,
+            },
+          },
+        }}
+        initial="hidden"
+        animate="visible"
+        transition={{ spring }}
+        className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-10 max-w-7xl mx-auto mt-10 md:p-0 p-5"
+      >
         {pokemons?.map((pokemon, index) => (
-          <Pokecard key={index} pokemon={pokemon} />
+          <motion.div
+            key={index}
+            variants={{
+              hidden: { opacity: 0, scale: 0.8 },
+              visible: {
+                opacity: [0.3, 0.5, 0.7, 1],
+                scale: [0.9, 1, 1.1, 1.2, 1.3, 1.2, 1.1, 1],
+              },
+            }}
+          >
+            <Pokecard pokemon={pokemon} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Loading */}
       {isLoading && (
