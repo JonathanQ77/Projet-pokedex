@@ -254,7 +254,15 @@ export default function PokemonDetails() {
     return <div className="text-center">Pokemon non trouvé</div>;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <motion.div
+      variants={{
+        hidden: { opacity: 0, y: 10 },
+        visible: { opacity: 1, y: 0 },
+      }}
+      initial="hidden"
+      animate="visible"
+      className="max-w-7xl mx-auto"
+    >
       <Pokecard pokemon={pokemon} details />
       {isNaN(id) && (
         <div className="flex justify-end gap-4 mt-5">
@@ -339,7 +347,7 @@ export default function PokemonDetails() {
         </AnimatePresence>,
         document.body
       )}
-    </div>
+    </motion.div>
   );
 }
 
